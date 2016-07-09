@@ -322,7 +322,8 @@ void BNLOpWLS::UseTimeProfile(const G4String name) {
 
 G4double BNLOpWLS::GetEmEnergy(G4double ExEn) {
   // Convert ExEn to LambEx in nm
-  G4double LambEx = 1239.84187 / (ExEn/eV);  
+  G4double hceVnm=CLHEP::twopi*CLHEP::hbarc/CLHEP::eV/CLHEP::nm;
+  G4double LambEx = hceVnm / (ExEn/eV);  
 
   // Loop the ExEmData events until a longer wavelength event is found.
   size_t theEvent = 0;
@@ -399,7 +400,33 @@ G4double BNLOpWLS::GetEmEnergy(G4double ExEn) {
   size_t theIndex = 0;
   while (theIndex < InterpCDF.size()) {
     if (InterpCDF.at(theIndex) > sample) {
-      return 1240. / (wlsData->ExEmData.at(LowerEvt).at(1).at(theIndex)/CLHEP::eV);
+      double LambEm;
+      if (theIndex==0)
+      LambEm=(wlsData->ExEmData.at(LowerEvt).at(1).at(theIndex))*1.0;
+      else{
+        double x1,x2,y1,y2,diff_a;
+        diff_a=sample-InterpCDF.at(theIndex-1);
+        x1=(wlsData->ExEmData.at(LowerEvt).at(1).at(theIndex-1))*1.0;
+        x2=(wlsData->ExEmData.at(LowerEvt).at(1).at(theIndex))*1.0;
+        y1=InterpDist.at(theIndex-1);
+        y2=InterpDist.at(theIndex);
+
+        double para_a, para_b,para_c;
+        para_a=(y2-y1)/(x2-x1);
+        para_b=2.0*(y1-x1*(y2-y1)/(x2-x1));
+        para_c=x1*(x1*(y2-y1)/(x2-x1)-2.0*y1)-2.0*diff_a;
+
+        double LambEm1,LambEm2;
+        LambEm1=(-para_b+sqrt(para_b*para_b-4.0*para_a*para_c))/(2.0*para_a);
+        LambEm2=(-para_b-sqrt(para_b*para_b-4.0*para_a*para_c))/(2.0*para_a);
+        
+        if(LambEm1>LambEm2)
+        LambEm=LambEm1;
+        else
+        LambEm=LambEm2;
+
+      }
+      return hceVnm / (LambEm/CLHEP::eV);
     }
     theIndex++;
   }
