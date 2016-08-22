@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 import os, sys, json
+from collections import OrderedDict
 
 template ={
     'name': "GEO",
@@ -414,7 +415,88 @@ def main():
         'orientation': "manual",
     })
 
-    other_objects = frame_bar + frame_leg_left + frame_leg_center + frame_leg_right
+    scin_file = open('scintillation_strip_geo.dat','r')
+    scin_data_list_all = []
+    for line in scin_file:
+        scin_line_data = line.split()
+        i = 0
+        scin_data_list = []
+        for data in scin_line_data:
+            if i == 0:
+                strip_no = int(data)
+                scin_data_list.append(strip_no)
+            elif i == 1:
+                scin_xcenter = float(data)
+                scin_data_list.append(scin_xcenter)
+            elif i == 2:
+                scin_ycenter = float(data)
+                scin_data_list.append(scin_ycenter)
+            elif i == 3:
+                scin_zcenter = float(data)
+                scin_data_list.append(scin_zcenter)
+            elif i == 4:
+                scin_half_x = float(data)
+                scin_data_list.append(scin_half_x)
+            elif i == 5:
+                scin_half_y = float(data)
+                scin_data_list.append(scin_half_y)
+            elif i == 6:
+                scin_half_z = float(data)
+                scin_data_list.append(scin_half_z)
+            i = i + 1
+        scin_data_list_all.append(scin_data_list)
+    scin_file.close()
+    scintillation_strip = []
+    for i in range(N):
+        scintillation_strip.append(build({
+            'index': 'scintillation_strip_%i' % (i,),
+            'type': 'box',
+            'size': [(scin_data_list_all[i])[4] * cm, (scin_data_list_all[i])[5] * cm, (scin_data_list_all[i])[6] * cm],
+            'position': [(scin_data_list_all[i])[1] * cm, (scin_data_list_all[i])[2] * cm, (scin_data_list_all[i])[3] * cm - 50.0 * cm],
+            'material': 'pvc',
+            'color': [1.0, 1.0, 1.0, 1.0],
+            'sensitive_detector': '/mydet/veto/genericchamber'
+        }))
+    
+    pmt_file = open('pmt_geo.dat','r')
+    pmt_data_list_all = []
+    for line in pmt_file:
+        pmt_line_data = line.split()
+        i = 0
+        pmt_data_list = []
+        for data in pmt_line_data:
+            if i == 0:
+                pmt_xventer = float(data)*cm
+                pmt_data_list.append(pmt_xventer)
+            elif i == 1:
+                pmt_ycenter = float(data)*cm
+                pmt_data_list.append(pmt_ycenter)
+            elif i == 2:
+                pmt_zcenter = float(data)*cm-50.0*cm
+                pmt_data_list.append(pmt_zcenter)
+            i = i + 1
+        pmt_data_list_all.append(pmt_data_list)
+    pmt_file.close()
+   
+    pmt_info = {
+        'name': 'PMTINFO',
+        'valid_begin': [0, 0],
+        'valid_end': [0, 0],
+        'x': [(pmt_data_list_all[0])[0],(pmt_data_list_all[1])[0],(pmt_data_list_all[2])[0],(pmt_data_list_all[3])[0],(pmt_data_list_all[4])[0],(pmt_data_list_all[5])[0]],
+        'y': [(pmt_data_list_all[0])[1],(pmt_data_list_all[1])[1],(pmt_data_list_all[2])[1],(pmt_data_list_all[3])[1],(pmt_data_list_all[4])[1],(pmt_data_list_all[5])[1]],
+        'z': [(pmt_data_list_all[0])[2],(pmt_data_list_all[1])[2],(pmt_data_list_all[2])[2],(pmt_data_list_all[3])[2],(pmt_data_list_all[4])[2],(pmt_data_list_all[5])[2]],
+        'dir_x': [0.0]*6,
+        'dir_y': [0.0]*6,
+        'dir_z': [1.0]*4 + [-1.0]*2,
+        'type': [0]*6,
+    }
+    f = open('PMTINFO.ratdb', 'w')
+    json.dump(pmt_info, f, sort_keys=True, indent=4)
+    f.write('\n')
+    f.close()
+
+        
+    other_objects = frame_bar + frame_leg_left + frame_leg_center + frame_leg_right + scintillation_strip
     write(
         world,
         dark_box,
@@ -447,25 +529,6 @@ def main():
         *other_objects
     )
 
-    # write PMT info
-    pmt_bot_z = -acrylic_wall_height/2 - acrylic_thickness + tank_offset[2]
-    pmt_top_z = acrylic_wall_height/2 + acrylic_lid_thickness + tank_offset[2]
-    pmt_info = {
-        'name': "PMTINFO",
-        'valid_begin': [0, 0],
-        'valid_end': [0, 0],
-        'x': [-400.0, -200.0, 0.0, 300.0, -200.0, 200.0],
-        'y': [0.0]*4 + [-200.0,   0.0],
-        'z': [pmt_bot_z]*4 + [pmt_top_z]*2,
-        'dir_x': [0.0]*6,
-        'dir_y': [0.0]*6,
-        'dir_z': [1.0]*4 + [-1.0]*2,
-        'type': [0]*6,
-    }
-    f = open('PMTINFO.ratdb', 'w')
-    json.dump(pmt_info, f, indent=4)
-    f.write('\n')
-    f.close()
 
 def add(x, y):
     return [a + b for a, b in zip(x, y)]
